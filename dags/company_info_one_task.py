@@ -72,7 +72,16 @@ def company_info_one_task():
 
         cursor.executemany(sql_insert_many, values)
         conn.commit()
+        
+        # delete
+        sql_delete = """
+        delete from company_info
+        where stock_code in (1409,1718,2207,2905);
+        """
 
+        cursor.execute(sql_delete)
+        conn.commit()
+        
         cursor.close()
         conn.close()
 
