@@ -17,11 +17,11 @@ default_args = {
 @dag(
     dag_id="industry_dag",
     default_args=default_args,
-    description="get company basic info for api",
-    schedule_interval="@daily",
+    description="get industry info",
+    schedule_interval="0 0 * * *",
     start_date=datetime(2023, 1, 1),
     catchup=False,
-    # tags=["company_info", "decorator"]  # Optional: Add tags for better filtering in the UI
+    tags=["industry"]
 )
 def industry_dag():
     @task
@@ -29,7 +29,7 @@ def industry_dag():
         # 取得資料
         url ='https://isin.twse.com.tw/isin/class_i.jsp?kind=2&owncode=&stockname=&isincode=&markettype=1&issuetype=&industry_code='
 
-        useragent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36'
+        useragent = os.getenv("USER_AGENT")
         headers = {'User-Agent' : useragent}
         res = requests.get(url, headers=headers)
         soup = BeautifulSoup(res.text, 'html.parser')

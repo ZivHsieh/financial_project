@@ -17,11 +17,11 @@ default_args = {
 @dag(
     dag_id="company_info_one_task",
     default_args=default_args,
-    description="get company basic info for api",
-    schedule_interval="@daily",
+    description="get company basic info from api",
+    schedule_interval="0 0 * * *",
     start_date=datetime(2023, 1, 1),
     catchup=False,
-    # tags=["company_info", "decorator"]  # Optional: Add tags for better filtering in the UI
+    tags=["company_info"]
 )
 def company_info_one_task():
     @task
