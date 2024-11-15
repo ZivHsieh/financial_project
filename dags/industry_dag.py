@@ -6,7 +6,6 @@ from airflow.decorators import dag, task
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-# Default arguments for the DAG
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
@@ -39,8 +38,7 @@ def industry_dag():
         for i in range(1, len(industry)):
             industry_code.append((industry[i].text[0:2], industry[i].text[3:]))
 
-
-        # update_company_info_table():
+        # update industry table():
         load_dotenv()
         config = {
             "host": os.getenv('DB_HOST'),
@@ -80,8 +78,7 @@ def industry_dag():
         cursor.close()
         conn.close()
 
-    
-    # Task dependencies defined by calling the tasks in sequence
+    # Task dependencies
     industry()
 
 industry_dag()

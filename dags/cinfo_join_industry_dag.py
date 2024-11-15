@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from dotenv import load_dotenv
 
-# Default arguments for the DAG
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
@@ -61,8 +60,7 @@ def cinfo_join_industry_dag():
         cursor.close()
         conn.close()
 
-    
-    # Task dependencies defined by calling the tasks in sequence
+    # Task dependencies
     update_cinfo_join_industry()
 
 cinfo_join_industry_dag()

@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from dotenv import load_dotenv
 
-# Default arguments for the DAG
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
@@ -41,7 +40,7 @@ def company_info_one_task():
                           '外國企業註冊地國', '產業別', '營利事業統一編號', 
                           '成立日期', '上市日期']]
 
-    # update_company_info_table():
+        # update_company_info_table():
         load_dotenv()
         config = {
             "host": os.getenv('DB_HOST'),
@@ -84,9 +83,8 @@ def company_info_one_task():
         
         cursor.close()
         conn.close()
-
     
-    # Task dependencies defined by calling the tasks in sequence
-    info = company_info_api()
+    # Task dependencies
+    company_info_api()
 
 company_info_one_task()
