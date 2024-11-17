@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
-    "retries": 1,
+    "retries": 3,
     "retry_delay": timedelta(minutes=5),
 }
 
@@ -27,10 +27,7 @@ def industry_dag():
     def industry():
         # 取得資料
         url ='https://isin.twse.com.tw/isin/class_i.jsp?kind=2&owncode=&stockname=&isincode=&markettype=1&issuetype=&industry_code='
-
-        useragent = os.getenv("USER_AGENT")
-        headers = {'User-Agent' : useragent}
-        res = requests.get(url, headers=headers, verify=False)
+        res = requests.get(url)
         soup = BeautifulSoup(res.text, 'html.parser')
 
         industry = soup.find('select', {'name' : 'industry_code'}).findAll('option')

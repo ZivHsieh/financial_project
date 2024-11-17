@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
-    "retries": 1,
+    "retries": 3,
     "retry_delay": timedelta(minutes=5),
 }
 
