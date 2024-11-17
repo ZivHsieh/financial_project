@@ -81,7 +81,7 @@ default_args = {
 
 with DAG('calculate_income_ratios_dag',
          default_args=default_args,
-         schedule_interval='@daily',
+         schedule_interval='0 1 * * 1-5',
          catchup=False) as dag:
 
     compute_ratios = PythonOperator(

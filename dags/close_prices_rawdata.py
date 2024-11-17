@@ -1,16 +1,15 @@
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-import time
 import pandas as pd
 import numpy as np
 from io import StringIO
 import requests
 from sqlalchemy import create_engine
 from airflow import DAG
-from airflow.operators.python import PythonOperator
-import pytz
-import logging
+from airflow.decorators import task
+import pendulum
+import tempfile
 
 # Load environment variables from .env
 load_dotenv()
@@ -23,7 +22,6 @@ password = os.getenv("DB_PASSWORD")
 database = os.getenv("DB_NAME")
 table_name = "stock_prices_rawdata"
 
-# Define column order
 COLUMN_ORDER = [
     "record_date", "stock_code", "stock_name", "transaction_volume",
     "transaction_count", "transaction_amount", "opening_price",
@@ -33,107 +31,161 @@ COLUMN_ORDER = [
 ]
 
 def create_mysql_engine():
-    """Create and return a MySQL engine connection."""
-    connection_string = f"mysql+pymysql://{user}:{password}@{mysql_ip}:{mysql_port}/{database}"
+    connection_string = f"mysql+pymysql://{user}:{password}@{mysql_ip}:{mysql_port}/{database}?charset=utf8mb4"
     return create_engine(connection_string)
+
 
 def log_error_to_mysql(error_message: str):
     """Log error message to MySQL error_log table."""
     try:
+        # 建立資料庫引擎和連線
         engine = create_mysql_engine()
+        connection = engine.connect()
+        print("Successfully connected to MySQL.")
+
+        # 確保獲取當前時間
+        current_time = pendulum.now('Asia/Taipei')
+        if current_time is None:
+            current_time = pendulum.now('UTC')
+
+        # 構建錯誤日誌數據
         error_data = pd.DataFrame({
             'error_message': [error_message],
-            'timestamp': [datetime.now(pytz.timezone('Asia/Taipei'))],
-            'table_name': [table_name]
+            'timestamp': [current_time.naive()],
+            'table_name': [table_name if table_name else 'unknown']
         })
-        error_data.to_sql(name='error_log', con=engine, if_exists='append', index=False)
-        logging.error(f"Error logged to error_log table: {error_message}")
+
+        # 嘗試寫入 MySQL
+        error_data.to_sql(name='error_log', con=connection, if_exists='append', index=False)
+        print(f"Error logged to error_log table: {error_message}")
+
     except Exception as e:
-        logging.error(f"Failed to log error to MySQL. Error: {str(e)}")
+        # 增加更多的 debug 輸出
+        print(f"Failed to log error to MySQL. Error: {str(e)}")
 
-def fetch_data_from_twse(date):
-    """Fetch stock price data from TWSE for the specified date, returns CSV string."""
-    url = f"http://www.twse.com.tw/exchangeReport/MI_INDEX?response=csv&date={date.strftime('%Y%m%d')}&type=ALL"
-    response = requests.post(url)
-    if response.status_code == 200:
-        return response.text
-    else:
-        raise Exception(f"Unable to fetch data from TWSE, HTTP Status: {response.status_code}")
+    finally:
+        # 確保在 finally 中關閉連接
+        if 'connection' in locals() and connection is not None:
+            try:
+                connection.close()
+                print("MySQL connection closed.")
+            except Exception as e:
+                print(f"Failed to close MySQL connection. Error: {str(e)}")
 
-def process_csv_to_dataframe(csv_data, date):
-    """Convert CSV string to DataFrame, clean and process columns."""
-    df = pd.read_csv(StringIO("\n".join([i.translate({ord(c): None for c in ' '}) 
-                                         for i in csv_data.split('\n') 
-                                         if len(i.split('",')) == 17 and i[0] != '='])), header=0)
-    df.insert(0, 'record_date', date.strftime('%Y-%m-%d'))
 
-    if len(df.columns) == 18:
-        df.columns = COLUMN_ORDER
-    else:
-        logging.error(f"Column count: {len(df.columns)}, Column names: {df.columns.tolist()}")
-        raise ValueError("Parsing error: Column count does not match the expected 18 columns")
 
-    columns_to_clean = ['transaction_amount', 'transaction_volume', 'transaction_count',
-                        'last_bid_volume', 'last_ask_volume', 'last_bid_price', 
-                        'last_ask_price', 'opening_price', 'highest_price', 
-                        'lowest_price', 'closing_price', 'price_change']
-    for col in columns_to_clean:
-        df[col] = df[col].astype(str).str.replace(',', '').replace('--', np.nan).astype(float)
+# DAG 定義
+default_args = {
+    'owner': 'airflow',
+    'start_date': datetime(2024, 10, 29, 10, 0, tzinfo=pendulum.timezone('UTC')), 
+    'retries': 0,
+    'retry_delay': timedelta(minutes=5),
+}
 
-    df['price_change_symbol'] = df['price_change_symbol'].replace({'+': 'plus', '-': 'minus'})
-    return df
+with DAG('close_prices_rawdata', default_args=default_args, schedule_interval='0 20 * * 1-5', catchup=True) as dag:
 
-def fetch_and_store_data(execution_date=None):
-    """Main function to fetch and store data from TWSE to MySQL."""
-    date = datetime.now(pytz.timezone('Asia/Taipei'))
-    fail_count = 0
-    allow_continuous_fail_count = 5
-    engine = create_mysql_engine()
-
-    while True:
-        logging.info(f'Processing {date}')
+    @task
+    def fetch_data_from_twse():
         try:
-            csv_data = fetch_data_from_twse(date)
-            df = process_csv_to_dataframe(csv_data, date)
-            df = df[COLUMN_ORDER]
+            date = pendulum.now('Asia/Taipei')
+            url = f"http://www.twse.com.tw/exchangeReport/MI_INDEX?response=csv&date={date.strftime('%Y%m%d')}&type=ALL"
+            response = requests.post(url, timeout=30)
+            if response.status_code == 200:
+                response.encoding = 'big5'
+                if not response.text.strip():
+                    # 正常記錄錯誤資訊
+                    log_error_to_mysql(f"Data is empty for date: {date.to_date_string()}")
+                    return date.isoformat(), None  # 返回 None 而不創建臨時文件
+                
+                # 如果有數據，才創建臨時文件
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+                with open(temp_file.name, "w", encoding="utf-8") as f:
+                    f.write(response.text)
+                
+                return date.isoformat(), temp_file.name
+            else:
+                raise Exception(f"Unable to fetch data from TWSE, HTTP Status: {response.status_code}")
+        except Exception as e:
+            log_error_to_mysql(f"Failed to fetch data from TWSE: {str(e)}")
+            raise
 
-            # Check for existing data in the database
+
+    @task
+    def process_csv_to_dataframe(data):
+        date_str, file_path = data
+        date = pendulum.parse(date_str)
+
+        if file_path is None:
+            log_error_to_mysql(f"CSV data is empty for date: {date.to_date_string()}")
+            return date.isoformat(), None
+
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                csv_data = f.read()
+
+            df = pd.read_csv(StringIO("\n".join([i.translate({ord(c): None for c in ' '})
+                                                 for i in csv_data.split('\n')
+                                                 if len(i.split('",')) == 17 and i[0] != '='])), header=0)
+            df.insert(0, 'record_date', date.to_date_string())
+            
+            if len(df.columns) == 18:
+                df.columns = COLUMN_ORDER
+            else:
+                raise ValueError("Parsing error: Column count does not match the expected 18 columns")
+
+            columns_to_clean = ['transaction_amount', 'transaction_volume', 'transaction_count',
+                                'last_bid_volume', 'last_ask_volume', 'last_bid_price', 
+                                'last_ask_price', 'opening_price', 'highest_price', 
+                                'lowest_price', 'closing_price', 'price_change']
+            for col in columns_to_clean:
+                df[col] = df[col].astype(str).str.replace(',', '').replace('--', np.nan).astype(float)
+
+            df['price_change_symbol'] = df['price_change_symbol'].replace({'+': 'plus', '-': 'minus'})
+
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+            df.to_csv(temp_file.name, index=False)
+            temp_file.close()
+            os.remove(file_path)  # 刪除 fetch_data_from_twse 中的臨時文件
+
+            return date.isoformat(), temp_file.name
+        except Exception as e:
+            log_error_to_mysql(f"Failed to process CSV to DataFrame: {str(e)}")
+            raise
+
+    @task
+    def load_data_to_mysql(data):
+        date_str, file_path = data
+        date = pendulum.parse(date_str)
+
+        if file_path is None:
+            log_error_to_mysql(f"No new data to insert for {date.to_date_string()}")
+            return
+
+        df = pd.read_csv(file_path)
+        engine = create_mysql_engine()
+        connection = engine.connect()
+        try:
             existing_data = pd.read_sql_query(
-                f"SELECT record_date, stock_code FROM {table_name} WHERE record_date = '{date.strftime('%Y-%m-%d')}'", 
-                con=engine
+                f"SELECT record_date, stock_code FROM {table_name} WHERE record_date = '{date.to_date_string()}'", 
+                con=connection
             )
+
             if not existing_data.empty:
                 df = df.merge(existing_data, on=['record_date', 'stock_code'], how='left', indicator=True)
                 df = df[df['_merge'] == 'left_only'].drop(columns=['_merge'])
 
             if df.empty:
-                logging.info(f"No new data to insert for {date}")
-                break
+                log_error_to_mysql(f"No new data to insert for {date.to_date_string()}")
+                return
 
-            df.to_sql(name=table_name, con=engine, if_exists='append', index=False)
-            logging.info('Data inserted successfully!')
-            break
+            df.to_sql(name=table_name, con=connection, if_exists='append', index=False)
         except Exception as e:
-            error_message = f"Failed to process {date.strftime('%Y-%m-%d')}: {str(e)}"
-            log_error_to_mysql(error_message)
-            fail_count += 1
-            if fail_count >= allow_continuous_fail_count:
-                final_error_message = f"Reached allowed continuous fail count ({allow_continuous_fail_count}). Last attempt date: {date.strftime('%Y-%m-%d')}"
-                log_error_to_mysql(final_error_message)
-                raise Exception(final_error_message)
-            time.sleep(10)
+            log_error_to_mysql(f"Failed to load data to MySQL: {str(e)}")
+            raise
+        finally:
+            connection.close()
+            os.remove(file_path)  # 刪除 process_csv_to_dataframe 中的臨時文件
 
-# Airflow DAG settings
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': True,
-    'start_date': datetime(2024, 10, 29, 18, 0),  # Start date in UTC, equivalent to local time 2024-10-29 18:00
-    'retries': 0,
-    'retry_delay': timedelta(minutes=5),
-}
-
-with DAG('close_prices_rawdata', default_args=default_args, schedule_interval='0 10 * * *', catchup=True) as dag:
-    task = PythonOperator(
-        task_id='fetch_and_store_data',
-        python_callable=fetch_and_store_data
-    )
+    data_fetched = fetch_data_from_twse()
+    processed_data = process_csv_to_dataframe(data_fetched)
+    load_data_to_mysql(processed_data)

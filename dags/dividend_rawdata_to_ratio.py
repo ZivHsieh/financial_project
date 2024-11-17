@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import pytz
+import numpy as np
 
 # Load environment variables
 load_dotenv()
@@ -16,7 +17,7 @@ mysql_port = os.getenv("DB_PORT")
 user = os.getenv("DB_USER")
 password = os.getenv("DB_PASSWORD")
 database = os.getenv("DB_NAME")
-source_table = "dividend_rawdata"
+source_table = "dividend_rawrawdata"
 target_table = "dividend_yield"
 
 # Create the connection string and engine
@@ -46,13 +47,18 @@ def process_and_store_data():
         connection.execute(f"TRUNCATE TABLE {target_table}")
 
     # Query data from the source table
+    
     query = f"""
-        SELECT ex_dividend_date, 
-               stock_code, 
-               pre_ex_dividend_close_price,
-               rights_dividend_value
-        FROM {source_table}"""
-
+    SELECT ex_dividend_date, 
+           stock_code, 
+           CAST(pre_ex_dividend_close_price AS DECIMAL(10, 2)) AS pre_ex_dividend_close_price,
+           CAST(rights_dividend_value AS DECIMAL(10, 4)) AS rights_dividend_value
+    FROM {source_table}
+    WHERE (rights_dividend_value != '-') and (rights_dividend_value != 0)
+    and (dropa IS NOT NULL AND dropb IS NOT NULL AND pre_ex_dividend_close_price IS NOT NULL)   
+    and (pre_ex_dividend_close_price != '-')
+ 
+    """
     try:
         # Load data into a DataFrame
         data = pd.read_sql(query, con=engine)
@@ -61,10 +67,13 @@ def process_and_store_data():
         data['dividend_yield'] = round((data['rights_dividend_value'] / data['pre_ex_dividend_close_price'] * 100), 3)
 
         # Clean and convert the date column
+        # 移除多餘的空白字元
         data["ex_dividend_date"] = data["ex_dividend_date"].apply(lambda x: x.strip() if isinstance(x, str) else x)
-        data["ex_dividend_date"] = data["ex_dividend_date"].apply(convert_to_gregorian)
-        data["ex_dividend_date"] = pd.to_datetime(data["ex_dividend_date"], format="%Y年%m月%d日", errors='coerce')
 
+        # 定義正確的日期格式
+        data["ex_dividend_date"] = pd.to_datetime(data["ex_dividend_date"], format="%Y/%m/%d", errors='coerce')
+
+        data.replace([np.inf, -np.inf, np.nan], None, inplace=True)
         # Filter out rows with invalid dates
         valid_data = data.dropna(subset=["ex_dividend_date"])
 
@@ -87,7 +96,7 @@ default_args = {
 with DAG(
     'dividend_yield_calculation',
     default_args=default_args,
-    schedule_interval='0 19 * * *',  # Run daily at 19:00 Taipei time
+    schedule_interval='30 19 * * 1-5',  # Run daily at 19:00 Taipei time
     catchup=False
 ) as dag:
     task = PythonOperator(

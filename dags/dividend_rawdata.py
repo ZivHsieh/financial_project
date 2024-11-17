@@ -119,7 +119,7 @@ dag = DAG(
     'daily_twse_dividend_data',
     default_args=default_args,
     description='Fetch and insert daily TWSE dividend data',
-    schedule_interval='@daily',
+    schedule_interval='0 19 * * 1-5',
     catchup=True,
 )
 

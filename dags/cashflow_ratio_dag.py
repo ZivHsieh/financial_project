@@ -161,7 +161,7 @@ with DAG(
     'cashflow_ratio_calculation',
     default_args=default_args,
     description='計算公司現金流量比率',
-    schedule_interval='0 2 * * *',  # 每天凌晨 2 點執行
+    schedule_interval='0 2 * * 1-5',  # 每天凌晨 2 點執行
     catchup=False,
     max_active_tasks=3
 ) as dag:

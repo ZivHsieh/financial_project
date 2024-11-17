@@ -58,7 +58,7 @@ def create_table_if_not_exists():
     dag_id="bs_history_debt_ratios_dag",
     default_args=default_args,
     description="DAG for calculating debt ratios data",
-    schedule_interval="*/20 * * * *",
+    schedule_interval="*20 * * * 1-5",
     start_date=datetime(2023, 1, 1),
     catchup=False,
     tags=["calculator", "debt_ratios"]
