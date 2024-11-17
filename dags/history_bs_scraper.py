@@ -80,9 +80,8 @@ def safe_decimal(value):
     dag_id="bs_history_scraper_dag",
     default_args=default_args,
     description="DAG for scraping balance sheet data",
-    schedule_interval="0 * * * 1-5",
+    schedule_interval="@once",
     start_date=datetime(2023, 1, 1),
-    end_date=datetime(2024, 11, 15),
     catchup=False,
     tags=["scraper", "balance_sheet"]
 )
