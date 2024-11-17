@@ -17,7 +17,7 @@ default_args = {
     dag_id="industry_dag",
     default_args=default_args,
     description="get industry info",
-    schedule_interval="0 0 * * *",
+    schedule_interval="0 0 * * 1-5",
     start_date=datetime(2023, 1, 1),
     catchup=False,
     tags=["industry"]
@@ -30,7 +30,7 @@ def industry_dag():
 
         useragent = os.getenv("USER_AGENT")
         headers = {'User-Agent' : useragent}
-        res = requests.get(url, headers=headers)
+        res = requests.get(url, headers=headers, verify=False)
         soup = BeautifulSoup(res.text, 'html.parser')
 
         industry = soup.find('select', {'name' : 'industry_code'}).findAll('option')
@@ -38,7 +38,6 @@ def industry_dag():
         for i in range(1, len(industry)):
             industry_code.append((industry[i].text[0:2], industry[i].text[3:]))
 
-        # update industry table():
         load_dotenv()
         config = {
             "host": os.getenv('DB_HOST'),
@@ -77,7 +76,7 @@ def industry_dag():
 
         cursor.close()
         conn.close()
-
+    
     # Task dependencies
     industry()
 

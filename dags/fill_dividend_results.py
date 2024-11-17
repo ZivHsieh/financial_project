@@ -109,7 +109,7 @@ dag = DAG(
     'fill_dividend_calculation_dag',
     default_args=default_args,
     description='A DAG to calculate and store fill dividend data',
-    schedule_interval='0 20 * * *',  # 每天晚上 8 點執行
+    schedule_interval='0 20 * * 1-5',  # 每天晚上 8 點執行
     catchup=False,
     tags=['financial'],
 )

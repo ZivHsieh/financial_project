@@ -17,7 +17,7 @@ default_args = {
     dag_id="cinfo_join_industry_dag",
     default_args=default_args,
     description="update company_info_join_industry table",
-    schedule_interval="30 0 * * *",
+    schedule_interval="30 0 * * 1-5",
     start_date=datetime(2023, 1, 1),
     catchup=False
 )

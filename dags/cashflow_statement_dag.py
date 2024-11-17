@@ -191,7 +191,7 @@ with DAG(
     'taiwan_stock_cashflow_etl',
     default_args=default_args,
     description='台股現金流量表 ETL 處理',
-    schedule_interval='0 0 * * *',  # 每天午夜執行
+    schedule_interval='0 0 * * 1-5',  # 每天午夜執行
     catchup=False,
     max_active_tasks=3  # 限制同時執行的任務數
 ) as dag:

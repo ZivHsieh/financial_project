@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from dotenv import load_dotenv
 
+# Default arguments for the DAG
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
@@ -17,7 +18,7 @@ default_args = {
     dag_id="company_info_one_task",
     default_args=default_args,
     description="get company basic info from api",
-    schedule_interval="0 0 * * *",
+    schedule_interval="0 0 * * 1-5",
     start_date=datetime(2023, 1, 1),
     catchup=False,
     tags=["company_info"]
