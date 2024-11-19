@@ -1,5 +1,5 @@
 # DIY ETF Investment Portfolio Dashboard
-The code was written by [Ziv Hsieh](https://github.com/ZivHsieh), [Bosheng Xu](https://github.com/ndd049032), [Min Wong](https://github.com/wmmmmoo), [Alvis](linmaimai) and  [Yoyo Zheng](https://github.com/yoyozheng97).  
+The code was written by [Ziv Hsieh](https://github.com/ZivHsieh), [Bosheng Xu](https://github.com/ndd049032), [Min Wong](https://github.com/wmmmmoo), [Alvis](linmaimai) and  [Yoyo Zheng](https://github.com/yoyozheng97w).  
 
 ## Purpose  
 When investing, the following concerns arise:  
