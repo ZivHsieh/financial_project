@@ -68,6 +68,6 @@ Our data pipeline is divided into the following three parts：
    - Promising industry outlook
   
 ## 📊 Data Sources
-[公開資訊觀測站](https://mops.twse.com.tw/mops/web/index)
-[臺灣證券交易所OpenAPI](https://openapi.twse.com.tw/)
-[Yahoo 財經](https://tw.finance.yahoo.com/)
+[公開資訊觀測站](https://mops.twse.com.tw/mops/web/index)  
+[臺灣證券交易所OpenAPI](https://openapi.twse.com.tw/)  
+[Yahoo 財經](https://tw.finance.yahoo.com/)  
