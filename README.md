@@ -66,15 +66,8 @@ Our data pipeline is divided into the following three parts：
    - Stable dividend and dividend coverage
    - Healthy financial ratios
    - Promising industry outlook
-
-## 👥 Team Members
-
-- Team Leader: Cheng-Chi Hsieh
-- Members:
-  - Hsueh-Shih Lin
-  - Min Weng
-  - Bo-Sheng Hsu
-  - Yu-Ning Cheng
-- Academic Advisors:
-  - Jo-Yu Chang
-  - Cheng-You Shih
+  
+## 📊 Data Sources
+[公開資訊觀測站](https://mops.twse.com.tw/mops/web/index)
+[臺灣證券交易所OpenAPI](https://openapi.twse.com.tw/)
+[Yahoo 財經](https://tw.finance.yahoo.com/)
