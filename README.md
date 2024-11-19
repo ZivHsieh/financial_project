@@ -22,7 +22,8 @@ So we create a dashboard to address the above concerns and organize our own high
 - Automated report updates
 
 ## 🛠 Technical Architecture
-![螢幕擷取畫面 2024-11-19 185740](https://github.com/user-attachments/assets/b187277a-9b36-40e8-898b-1122e0ce7901)
+<img width="612" alt="截圖 2024-11-19 19 15 14" src="https://github.com/user-attachments/assets/e2e8a634-9e9e-464c-b1d0-2803a4b20a6d">
+
 ### Core Technologies
 - Python
 - Docker
